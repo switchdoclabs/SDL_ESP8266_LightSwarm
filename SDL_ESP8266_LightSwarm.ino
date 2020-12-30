@@ -1,18 +1,24 @@
 /*
-Cooperative IOT Self Organizing Example
-SwitchDoc Labs, December 2020
+  Cooperative IOT Self Organizing Example
+  SwitchDoc Labs, December 2020
 
- */
+*/
 
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
 #include "Adafruit_TCS34725.h"
 
-#undef DEBUG
+#define DEBUG
+// for debuging recieved commands
 
-char ssid[] = "yyyyyy";  //  your network SSID (name)
-char pass[] = "xxxxxx";       // your network password
+#define CHECKCOMMANDS
+
+//char ssid[] = "yyyyyy";  //  your network SSID (name)
+//char pass[] = "xxxxxx";       // your network password
+
+char ssid[] = "gracie";  //  your network SSID (name)
+char pass[] = "faraday01";       // your network password
 
 
 #define VERSIONNUMBER 28
@@ -106,7 +112,7 @@ void setup()
   Serial.println(VERSIONNUMBER);
   Serial.println("--------------------------");
 
-  Serial.println(F(" 09/03/2015"));
+  Serial.println(F(" 12/29/2020"));
   Serial.print(F("Compiled at:"));
   Serial.print (F(__TIME__));
   Serial.print(F(" "));
@@ -144,10 +150,10 @@ void setup()
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.begin(ssid, pass);
- 
+
 
   // initialize Swarm Address - we start out as swarmID of 0
-  
+
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -185,16 +191,16 @@ void setup()
   Serial.println(clearColor);
 
 
-  // set SwarmID based on IP address 
+  // set SwarmID based on IP address
 
-  
+
   localIP = WiFi.localIP();
-  
+
   swarmAddresses[0] =  localIP[3];
-  
-  
+
+
   mySwarmID = 0;
-  
+
   Serial.print("MySwarmID=");
   Serial.println(mySwarmID);
 
@@ -217,7 +223,7 @@ void loop()
   tcs.getRawData(&r, &g, &b, &c);
   colorTemp = tcs.calculateColorTemperature(r, g, b);
   lux = tcs.calculateLux(r, g, b);
-
+#ifdef DEBUG
   Serial.print("Color Temp: "); Serial.print(colorTemp, DEC); Serial.print(" K - ");
   Serial.print("Lux: "); Serial.print(lux, DEC); Serial.print(" - ");
   Serial.print("R: "); Serial.print(r, DEC); Serial.print(" ");
@@ -225,6 +231,8 @@ void loop()
   Serial.print("B: "); Serial.print(b, DEC); Serial.print(" ");
   Serial.print("C: "); Serial.print(c, DEC); Serial.print(" ");
   Serial.println(" ");
+#endif
+
 
   clearColor = c;
   redColor = r;
@@ -246,14 +254,20 @@ void loop()
     // We've received a packet, read the data from it
 
     udp.read(packetBuffer, PACKET_SIZE); // read the packet into the buffer
+#ifdef CHECKCOMMANDS
+
     Serial.print("packetbuffer[1] =");
     Serial.println(packetBuffer[1]);
+
+#endif
     if (packetBuffer[1] == LIGHT_UPDATE_PACKET)
     {
+#ifdef DEBUG
       Serial.print("LIGHT_UPDATE_PACKET received from LightSwarm #");
       Serial.println(packetBuffer[2]);
+#endif
       setAndReturnMySwarmIndex(packetBuffer[2]);
-
+#ifdef DEBUG
       Serial.print("LS Packet Recieved from #");
       Serial.print(packetBuffer[2]);
       Serial.print(" SwarmState:");
@@ -271,6 +285,7 @@ void loop()
       Serial.print(packetBuffer[11] * 256 + packetBuffer[12]);
       Serial.print(" Version=");
       Serial.println(packetBuffer[4]);
+#endif
 
       // record the incoming clear color
 
@@ -393,25 +408,29 @@ void loop()
     digitalWrite(0, HIGH);
     Serial.print("SLAVE");
   }
+#ifdef DEBUG
   Serial.print("/cc=");
   Serial.print(clearColor);
   Serial.print("/KS:");
   Serial.println(serverAddress);
-  
+#endif
   Serial.println("--------");
-  
-  
+
+
   int i;
   for (i = 0; i < SWARMSIZE; i++)
   {
+#ifdef DEBUG
     Serial.print("swarmAddress[");
     Serial.print(i);
     Serial.print("] = ");
-    Serial.println(swarmAddresses[i]); 
+    Serial.println(swarmAddresses[i]);
+#endif
   }
+#ifdef DEBUG
   Serial.println("--------");
-  
-  
+#endif
+
 
   broadcastARandomUpdatePacket();
   //  sendARandomUpdatePacket();
@@ -461,16 +480,20 @@ void broadcastARandomUpdatePacket()
 {
 
   int sendToLightSwarm = 255;
+#ifdef DEBUG
   Serial.print("Broadcast ToSwarm = ");
   Serial.print(sendToLightSwarm);
   Serial.print(" ");
+#endif
 
   // delay 0-MAXDELAY seconds
   int randomDelay;
   randomDelay = random(0, MAXDELAY);
+#ifdef DEBUG
   Serial.print("Delay = ");
   Serial.print(randomDelay);
   Serial.print("ms : ");
+#endif
 
   delay(randomDelay);
 
@@ -587,18 +610,17 @@ void checkAndSetIfMaster()
 
 int setAndReturnMySwarmIndex(int incomingID)
 {
- 
+
   int i;
-  for (i = 0; i< SWARMSIZE; i++)
+  for (i = 0; i < SWARMSIZE; i++)
   {
     if (swarmAddresses[i] == incomingID)
     {
-       return i;
-    } 
-    else
-    if (swarmAddresses[i] == 0)  // not in the system, so put it in
+      return i;
+    }
+    else if (swarmAddresses[i] == 0) // not in the system, so put it in
     {
-    
+
       swarmAddresses[i] = incomingID;
       Serial.print("incomingID ");
       Serial.print(incomingID);
@@ -606,31 +628,31 @@ int setAndReturnMySwarmIndex(int incomingID)
       Serial.println(i);
       return i;
     }
-    
-  }  
-  
-  // if we get here, then we have a new swarm member.   
-  // Delete the oldest swarm member and add the new one in 
+
+  }
+
+  // if we get here, then we have a new swarm member.
+  // Delete the oldest swarm member and add the new one in
   // (this will probably be the one that dropped out)
-  
+
   int oldSwarmID;
   long oldTime;
   oldTime = millis();
   for (i = 0;  i < SWARMSIZE; i++)
- {
-  if (oldTime > swarmTimeStamp[i])
   {
-    oldTime = swarmTimeStamp[i];
-    oldSwarmID = i;
+    if (oldTime > swarmTimeStamp[i])
+    {
+      oldTime = swarmTimeStamp[i];
+      oldSwarmID = i;
+    }
+
   }
-  
- } 
- 
- // remove the old one and put this one in....
- swarmAddresses[oldSwarmID] = incomingID;
- // the rest will be filled in by Light Packet Receive
- 
-  
+
+  // remove the old one and put this one in....
+  swarmAddresses[oldSwarmID] = incomingID;
+  // the rest will be filled in by Light Packet Receive
+
+
 }
 
 
