@@ -14,11 +14,9 @@
 
 #define CHECKCOMMANDS
 
-//char ssid[] = "yyyyyy";  //  your network SSID (name)
-//char pass[] = "xxxxxx";       // your network password
+char ssid[] = "yyyyyy";  //  your network SSID (name)
+char pass[] = "xxxxxx";       // your network password
 
-char ssid[] = "gracie";  //  your network SSID (name)
-char pass[] = "faraday01";       // your network password
 
 
 #define VERSIONNUMBER 28
